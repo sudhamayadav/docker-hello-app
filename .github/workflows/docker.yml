@@ -10,20 +10,38 @@ env:
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
-  build-and-push:
+  # Job 1: Run tests first
+  test:
     runs-on: ubuntu-latest
 
-    # Needed so this workflow is allowed to push to GHCR
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run tests
+        run: pytest -v
+
+  # Job 2: Only runs if the "test" job succeeds
+  build-and-push:
+    needs: test
+    runs-on: ubuntu-latest
+
     permissions:
       contents: read
       packages: write
 
     steps:
-      # Step 1: Get the code from the repo
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # Step 2: Log in to GitHub Container Registry
       - name: Log in to GHCR
         uses: docker/login-action@v3
         with:
@@ -31,7 +49,6 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # Step 3: Build the Docker image and push it
       - name: Build and push image
         uses: docker/build-push-action@v6
         with:
